@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anonimus Market</title>
+    <style>
+        :root {
+            --main-bg: #121212;
+            --secondary-bg: #1e1e1e;
+            --accent: #00ff88;
+            --text: #e0e0e0;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Courier New', monospace;
+        }
+        
+        body {
+            background-color: var(--main-bg);
+            color: var(--text);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 40px 0;
+            border-bottom: 1px solid var(--accent);
+        }
+        
+        .logo {
+            font-size: 2.5em;
+            color: var(--accent);
+            margin-bottom: 20px;
+        }
+        
+        nav {
+            margin: 20px 0;
+        }
+        
+        nav a {
+            color: var(--text);
+            text-decoration: none;
+            margin: 0 15px;
+            padding: 5px 10px;
+            border: 1px solid var(--accent);
+            transition: all 0.3s ease;
+        }
+        
+        nav a:hover {
+            background-color: var(--accent);
+            color: var(--main-bg);
+        }
+        
+        .auth-section {
+            text-align: center;
+            padding: 40px 0;
+        }
+        
+        .discord-btn {
+            background-color: #7289DA;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
+        }
+        
+        .category {
+            margin: 40px 0;
+        }
+
+        .category-title {
+            color: var(--accent);
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--accent);
+            padding-bottom: 10px;
+        }
+
+        .products {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
+        }
+        
+        .product-card {
+            background-color: var(--secondary-bg);
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        
+        .product-image {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto;
+            overflow: hidden;
+            border-radius: 50%;
+        }
+        
+        .product-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .quantity-input {
+            width: 80px;
+            padding: 5px;
+            margin: 10px 0;
+            background-color: var(--main-bg);
+            border: 1px solid var(--accent);
+            color: var(--text);
+            text-align: center;
+        }
+        
+        button {
+            background-color: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 10px 20px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background-color: var(--accent);
+            color: var(--main-bg);
+        }
+        
+        #cart {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            background-color: var(--secondary-bg);
+            padding: 20px;
+            border-radius: 5px;
+            max-width: 300px;
+            z-index: 1000;
+        }
+        
+        .order-form {
+            max-width: 500px;
+            margin: 40px auto;
+            padding: 20px;
+            background-color: var(--secondary-bg);
+            border-radius: 5px;
+        }
+        
+        .order-form input, .order-form textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: var(--main-bg);
+            border: 1px solid var(--accent);
+            color: var(--text);
+        }
+        
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="logo">ANON SHOP</div>
+        <p>il mercato di alta qualità</p>
+        <nav>
+            <a href="#" onclick="checkAuthAndShow('products')">Catalogo</a>
+            <a href="#" onclick="checkAuthAndShow('order')">Ordina</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <section id="auth" class="auth-section">
+            <h2>Autenticazione Richiesta</h2>
+            <p>Per accedere al negozio, effettua l'accesso con Discord</p>
+            <button class="discord-btn" onclick="loginWithDiscord()">
+                Accedi con Discord
+            </button>
+        </section>
+
+        <section id="products" class="hidden"></section>
+
+        <section id="order" class="hidden">
+            <form class="order-form" onsubmit="submitOrder(event)">
+                <h2>Completa il tuo Ordine</h2>
+                <input type="text" id="codename" placeholder="Numero Telefonico" required>
+                <textarea id="notes" placeholder="Note per la Consegna" rows="4"></textarea>
+                <button type="submit">Invia Ordine</button>
+            </form>
+        </section>
+    </div>
+
+    <div id="cart" class="hidden">
+        <h3>Carrello</h3>
+        <div id="cart-items"></div>
+        <p>Totale: <span id="cart-total">0</span> €</p>
+        <button onclick="checkAuthAndShow('order')">Procedi all'Ordine</button>
+    </div>
+
+    <script>
+        const CLIENT_ID = '1320799439505330257';
+        const REDIRECT_URI = encodeURIComponent('https://zsormaxlive.github.io/');
+        const webhookURL = 'https://discord.com/api/webhooks/1320753628159545504/dZIIGgzycrTiD_fmfHt7a-J_BB3DMwOjgtJqurzkrInkcAvWuAGbR9pHp8eOkvoZkHRY';
+        
+        let userDiscordInfo = null;
+        
+        function loginWithDiscord() {
+            const url = `https://discord.com/api/oauth2/authorize?client_id=${CLIENT_ID}&redirect_uri=${REDIRECT_URI}&response_type=token&scope=identify`;
+            window.location.href = url;
+        }
+
+        function checkAuth() {
+            const fragment = new URLSearchParams(window.location.hash.slice(1));
+            const accessToken = fragment.get('access_token');
+
+            if (accessToken) {
+                fetch('https://discord.com/api/users/@me', {
+                    headers: {
+                        Authorization: `Bearer ${accessToken}`
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    userDiscordInfo = {
+                        id: data.id,
+                        username: `${data.username}#${data.discriminator}`
+                    };
+                    document.getElementById('auth').classList.add('hidden');
+                    showSection('products');
+                })
+                .catch(err => {
+                    console.error('Errore auth:', err);
+                    alert('Errore di autenticazione. Riprova.');
+                });
+            }
+        }
+
+        function checkAuthAndShow(sectionId) {
+            if (!userDiscordInfo) {
+                alert('Devi prima effettuare l\'accesso con Discord!');
+                showSection('auth');
+                return;
+            }
+            showSection(sectionId);
+        }
+
+        const categories = {
+            droghe: {
+                name: "Droghe",
+                items: [
+                    { id: 1, name: 'erba', price: 30, description: 'erba raccolta', image: 'images/erba.png' },
+                    { id: 3, name: 'meth', price: 50, description: 'meth  raccolta', image: 'images/meth.png' },
+                    { id: 5, name: 'coca', price: 50, description: 'coca  raccolta', image: 'images/coca.png' },
+                ]
+            },
+            droghe_processate: {
+                name: "Droghe Processate",
+                items: [
+                    { id: 2, name: 'erba processata', price: 200, description: 'erba processata', image: 'images/erba_processata.png' },
+                    { id: 4, name: 'meth processata', price: 300, description: 'meth  processata', image: 'images/meth_processata.png' },
+                    { id: 6, name: 'coca processata', price: 300, description: 'coca  processata', image: 'images/coca_processata.png' },
+                ]
+            },
+            armi: {
+                name: "Armi",
+                items: [
+                    { id: 7, name: 'glock', price: 27000, description: 'pistola glock', image: 'images/glock.png' },
+                    { id: 8, name: 'item',  price: 0, description: 'vuoto', image: 'images/anonlogo.png' },
+                    { id: 9, name: 'item', price: 0, description: 'vuoto', image: 'images/anonlogo.png' },
+                ]
+            },
+            altro: {
+                name: "Altro",
+                items: [
+                    { id: 10, name: 'soldi sporchi', price: 1, description: 'soldi da pulire', image: 'images/soldi_sporchi.png' },
+                    { id: 12, name: 'lingotto di oro', price: 50000, description: '10kg oro massiccio', image: 'images/lingotto_oro.png' },
+                ]
+            },
+        };
+
+        let cart = [];
+        let total = 0;
+
+        document.getElementById('products').innerHTML = Object.entries(categories).map(([key, category]) => `
+            <div class="category">
+                <h2 class="category-title">${category.name}</h2>
+                <div class="products">
+                    ${category.items.map(item => `
+                        <div class="product-card">
+                            <div class="product-image">
+                                <img src="${item.image}" alt="${item.name}">
+                            </div>
+                            <h3>${item.name}</h3>
+                            <p>${item.description}</p>
+                            <p>${item.price} €</p>
+                            <input type="number" min="0" value="0" class="quantity-input" id="quantity-${item.id}">
+                            <button onclick="addToCart(${item.id})">Aggiungi al Carrello</button>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `).join('');
+
+        function showSection(sectionId) {
+            document.querySelectorAll('section').forEach(section => {
+                section.classList.add('hidden');
+            });
+            document.getElementById(sectionId).classList.remove('hidden');
+        }
+
+        function findItem(itemId) {
+            for (const category of Object.values(categories)) {
+                const item = category.items.find(i => i.id === itemId);
+                if (item) return item;
+            }
+            return null;
+        }
+
+        function addToCart(itemId) {
+            if (!userDiscordInfo) {
+                alert('Devi prima effettuare l\'accesso con Discord!');
+                showSection('auth');
+                return;
+            }
+
+            const item = findItem(itemId);
+            const quantity = parseInt(document.getElementById(`quantity-${itemId}`).value);
+            
+            if (quantity > 0) {
+                cart = cart.filter(i => i.id !== itemId);
+                cart.push({ ...item, quantity });
+                updateCart();
+                document.getElementById('cart').classList.remove('hidden');
+            }
+        }
+
+        function updateCart() {
+            const cartItems = document.getElementById('cart-items');
+            total = 0;
+            
+            cartItems.innerHTML = cart.map(item => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                return `<div>${item.quantity}x ${item.name} = ${itemTotal} €</div>`;
+            }).join('');
+            
+            document.getElementById('cart-total').textContent = total;
+        }
+
+        async function sendToDiscord(orderData) {
+            const embed = {
+                title: "🚚 Nuovo Ordine Ricevuto",
+                color: 0x00ff00,
+                fields: [
+                    {
+                        name: "👤 Cliente Discord",
+                        value: `Username: ${userDiscordInfo.username}\nID: ${userDiscordInfo.id}`,
+                        inline: false
+                    },
+                    {
+                        name: "📱 Numero Telefonico",
+                        value: orderData.codename,
+                        inline: false
+                    },
+                    {
+                        name: "📦 Prodotti Ordinati",
+                        value: orderData.items.map(item => 
+                            `• ${item.quantity}x ${item.name} = ${item.price * item.quantity}€`
+                        ).join('\n'),
+                        inline: false
+                    },
+                    {
+                        name: "💰 Totale",
+                        value: `${orderData.total}€`,
+                        inline: true
+                    }
+                ],
+                footer: {
+                    text: "Sistema Ordini Anonimus"
+                },
+                timestamp: new Date().toISOString()
+            };
+
+            if (orderData.notes) {
+                embed.fields.push({
+                    name: "📝 Note",
+                    value: orderData.notes,
+                    inline: false
+                });
+            }
+
+            try {
+                const response = await fetch(webhookURL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ embeds: [embed] })
+                });
+
+                if (!response.ok) throw new Error('Errore nell\'invio');
+                return true;
+            } catch (error) {
+                console.error('Errore:', error);
+                alert('Errore nell\'invio dell\'ordine. Riprova più tardi.');
+                return false;
+            }
+        }
+
+        async function submitOrder(event) {
+            event.preventDefault();
+            
+            if (!userDiscordInfo) {
+                alert('Devi prima effettuare l\'accesso con Discord!');
+                showSection('auth');
+                return;
+            }
+            
+            if (cart.length === 0) {
+                alert('Il carrello è vuoto!');
+                return;
+            }
+
+            const orderData = {
+                codename: document.getElementById('codename').value,
+                items: cart,
+                total: total,
+                notes: document.getElementById('notes').value
+            };
+
+            const success = await sendToDiscord(orderData);
+            
+            if (success) {
+                alert('Ordine inviato con successo!');
+                cart = [];
+                total = 0;
+                updateCart();
+                document.getElementById('cart').classList.add('hidden');
+                document.getElementById('codename').value = '';
+                document.getElementById('notes').value = '';
+                
+                Object.values(categories).forEach(category => {
+                    category.items.forEach(item => {
+                        document.getElementById(`quantity-${item.id}`).value = 0;
+                    });
+                });
+                
+                showSection('products');
+            }
+        }
+
+        // Verifica l'autenticazione all'avvio
+        window.onload = () => {
+            checkAuth();
+            showSection('auth');
+        }
+    </script>
+</body>
+</html>
